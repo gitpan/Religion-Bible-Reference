@@ -11,7 +11,7 @@ Religion::Bible::Reference::Standard - standard bible books and abbreviations
 
 version 0.00_03
 
- $Id$
+ $Id: /my/cs/projects/bibleref/trunk/lib/Religion/Bible/Reference/Standard.pm 20002 2006-03-17T02:01:45.108989Z rjbs  $
 
 =cut
 

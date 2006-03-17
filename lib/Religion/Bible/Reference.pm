@@ -3,9 +3,14 @@ package Religion::Bible::Reference;
 use warnings;
 use strict;
 
-use Exporter;
-@Religion::Bible::Reference::ISA = qw(Exporter);
-@Religion::Bible::Reference::EXPORT = qw(bibref);
+use Sub::Exporter -setup => {
+  exports => [ qw(bibref) ],
+  groups  => { default => [ qw(bibref) ] },
+};
+
+use base qw(Class::Accessor);
+
+__PACKAGE__->mk_accessors(qw(book chapter ranges));
 
 use Religion::Bible::Reference::Standard;
 
@@ -15,13 +20,13 @@ Religion::Bible::Reference - canonicalize shorthand bible references
 
 =head1 VERSION
 
-version 0.00_03
+version 0.01
 
- $Id$
+ $Id: /my/cs/projects/bibleref/trunk/lib/Religion/Bible/Reference.pm 20003 2006-03-17T02:03:08.001164Z rjbs  $
 
 =cut
 
-our $VERSION = '0.00_03';
+our $VERSION = '0.01';
 
 =head1 SYNOPSIS
 
@@ -37,12 +42,24 @@ our $VERSION = '0.00_03';
 This module converts simple text descriptions of bible references and ranges
 into objects that stringify into a canonical form.
 
+B<WARNING!>  This module is mostly an idea and not so much a guaranteed
+interface or well-tested implementation.  If you're interested in either of
+those existing, you should let me know.
+
 =head1 FUNCTIONS
 
 =head2 bibref($ref_string)
 
 This function is exported by default, and constructs a new
 Religion::Bible::Reference
+
+Reference strings must be a book followed by a list of chapters, verses, or
+ranges.  The following are all valid ranges:
+
+  Pro 23:12, 23:15-17
+  st.jn8:32
+  Song of Solomon 8:7-8
+  2 John 1
 
 =cut
 
@@ -56,23 +73,74 @@ This method acts just like the exported C<bibref> function.
 
 =cut
 
-sub new {
-	my ($class, $ref_string) = @_;
-	(my $book = $ref_string) =~ s/\s*(\d+(?::\d+(?:-\d+(?::\d+)?)?)?)\Z//;
-	my $range = $1;
+# ok:
+# jn8
+# jn8:32
+# jn8:30-32
+# jn8:25-28,30-32
+# jn8:1,3-4,6
 
-	my %bibref;
-	return unless $bibref{book}  = $class->canonicalize_book($book);
-	return unless $bibref{range} = $class->parse_range($range);
-	return unless $class->validate_verse(
-		$bibref{book}, $bibref{range}{begin_chapter}, $bibref{range}{begin_verse}
-	);
-	if (defined $bibref{range}{end_chapter}) {
-		return unless $class->validate_verse(
-			$bibref{book}, $bibref{range}{end_chapter}, $bibref{range}{end_verse}
-		)
-	}
-	bless \%bibref => $class;
+sub _parse_ref {
+  my ($class, $ref_string) = @_;
+  my $range_regex  = qr/\d+(?::(?:\d[-,]?)+)?/;
+
+  (my $book  = $ref_string) =~ s/\s*($range_regex)\z//;
+  my $ranges = $1;
+  return (book => $book, ranges => $ranges);
+}
+
+sub new {
+  my ($class, $ref_string) = @_;
+
+  my %bibref = $class->_parse_ref($ref_string);
+
+  my $self;
+
+  return unless $self->{book}  = $class->canonicalize_book($bibref{book});
+
+  return unless my $range = $class->_parse_ranges($bibref{ranges});
+
+  $self->{chapter} = $range->{chapter};
+  $self->{ranges}  = $range->{ranges};
+
+  return unless $class->_validate_ranges(
+    $self->{book},
+    $self->{chapter},
+    $self->{ranges},
+  );
+
+  bless $self => $class;
+}
+
+sub _validate_ranges {
+  my ($class, $book, $chapter, $ranges) = @_;
+
+  foreach my $range (@$ranges) {
+    return unless $class->validate_verse($book, $chapter, $range->[0]);
+    return unless $class->validate_verse($book, $chapter, $range->[1]);
+  }
+  return 1;
+}
+
+sub _parse_ranges {
+  my ($self, $string) = @_;
+
+  my ($chapter, $rest) = $string =~ /\A(\d+)(?::(.+))?\z/;
+
+  return unless $chapter;
+  return { chapter => $string } unless $rest;
+
+  my @range_strings = split /,\s?/, $rest;
+
+  my @range;
+  
+  for my $rs (@range_strings) {
+    my ($start, $end) = $rs =~ /\A(\d+)(?:-(\d+))?\z/;
+    return unless $start;
+    push @range, [ $start, (defined $end ? $end : $start) ];
+  }
+
+  return { chapter => $chapter, ranges => \@range };
 }
 
 =head2 $self->stringify
@@ -83,31 +151,32 @@ book name.
 =cut
 
 sub stringify {
-	my ($self) = @_;
-	$self->{book} . ' ' . $self->_stringify_range;
+  my ($self) = @_;
+  my $string = $self->{book}
+             . ' '
+             . $self->{chapter};
+
+  return unless @{ $self->{ranges} };
+
+  $string .= 
+    ':' . join(', ', map { $self->_stringify_range($_) } @{ $self->{ranges} })
+  ;
 }
 
 sub _stringify_range {
-	my ($self) = @_;
-	$self->{range}{begin_chapter}
-	. ($self->{range}{begin_verse} ? ":$self->{range}{begin_verse}" : '')
-	. ($self->{range}{end_chapter}
-		? ($self->{range}{end_chapter} == $self->{range}{begin_chapter})
-			? '-'
-			: "-$self->{range}{end_chapter}:"
-		: '')
-	. ($self->{range}{end_verse} ? "$self->{range}{end_verse}" : '')
-}
+  my ($self, $range) = @_;
 
+  map { $_->[0] == $_->[1] ? $_->[0] : "$_->[0]-$_->[1]" } $range
+}
 
 my %book_chapters;
 my %book_abbrev;
 
 sub _register_book_set {
-	my ($class, $package) = @_;
-	my $standard = $package->_books;
-	%book_chapters = (%book_chapters, %{$standard->{chapters}});
-	%book_abbrev   = (%book_abbrev,   %{$standard->{abbrev}});
+  my ($class, $package) = @_;
+  my $standard = $package->_books;
+  %book_chapters = (%book_chapters, %{$standard->{chapters}});
+  %book_abbrev   = (%book_abbrev,   %{$standard->{abbrev}});
 }
 
 __PACKAGE__->_register_book_set("Religion::Bible::Reference::Standard");
@@ -126,48 +195,24 @@ abbreviation was passed.
 # entries in the associated list; good idea, for future revision
 
 sub canonicalize_book {
-	my ($class, $book_abbrev) = @_;
-	return $book_abbrev if $book_abbrev{$book_abbrev};
-	my $lc_abbrev = lc($book_abbrev);
-	for my $book (keys %book_abbrev) {
-		return $book if lc($book) eq $lc_abbrev;
-		for (@{$book_abbrev{$book}}) {
-			if (ref $_) { return $book if $book_abbrev =~ m/$_/; }
-			       else { return $book if $lc_abbrev eq lc($_);  }
-		}
-	}
-	return;
+  my ($class, $book_abbrev) = @_;
+  return $book_abbrev if $book_abbrev{$book_abbrev};
+  my $lc_abbrev = lc($book_abbrev);
+  for my $book (keys %book_abbrev) {
+    return $book if lc($book) eq $lc_abbrev;
+    for (@{$book_abbrev{$book}}) {
+      if (ref $_) { return $book if $book_abbrev =~ m/$_/; }
+             else { return $book if $lc_abbrev eq lc($_);  }
+    }
+  }
+  return;
 }
 
-=head2 $class->parse_range($range_string)
 
-This method returns a hash reference describing the range described in the
-passed string.
 
-=cut
+=head2 C< validate_verse >
 
-sub parse_range {
-	my ($class, $range) = @_;
-	my ($bc, $bv, $ec, $ev) =
-		$range =~ /\A
-			(\d+)       # beginning chapter
-			(?::(\d+)   # maybe colon, then beginning verse
-			(?:-        # maybe a dash
-			(?:(\d+):)? # maybe end chapter, ending in colon
-			(?:(\d+))   # and maybe the end verse
-			?)?)? 
-		\Z/x;
-
-	$ec = $bc if ($ev and not $ec);
-	{
-		begin_chapter => $bc,
-		begin_verse   => $bv,
-		  end_chapter => $ec,
-		  end_verse   => $ev
-	}
-}
-
-=head2 $class->validate_verse($book, $chapter, $verse)
+  $class->validate_verse($book, $chapter, $verse)
 
 This method returns true if the given book, chapter, and verse exists;
 otherwise it returns false.
@@ -175,11 +220,52 @@ otherwise it returns false.
 =cut
 
 sub validate_verse {
-	my ($self, $book, $chapter, $verse) = @_;
-	return unless exists $book_chapters{$book};
-	return unless defined $book_chapters{$book}[$chapter - 1];
-	return unless $book_chapters{$book}[$chapter - 1] >= $verse;
-	return 1
+  my ($self, $book, $chapter, $verse) = @_;
+  return unless exists $book_chapters{$book};
+  return unless defined $book_chapters{$book}[$chapter - 1];
+  return unless $book_chapters{$book}[$chapter - 1] >= $verse;
+  return 1
+}
+
+=head2 C< iterator >
+
+  my $iterator = $bibref->iterator;
+
+  while (my $verse = $iterator->next) {
+    my $text = retrieve($verse);
+    print "$text\n";
+  }
+
+=cut
+
+sub iterator {
+  my ($self) = @_;
+
+  my $iterator = {
+    book    => $self->book,
+    chapter => $self->chapter,
+    ranges  => [ @{ $self->ranges } ],
+  };
+
+  bless $iterator => 'Religion::Bible::Reference::Iterator';
+}
+
+package Religion::Bible::Reference::Iterator;
+
+sub next {
+  my ($self) = @_;
+  return unless @{ $self->{ranges} };
+
+  $self->{position} ||= $self->{ranges}[0][0];
+  my $position = $self->{position};
+
+  if ($position == $self->{ranges}[0][1]) {
+    shift @{ $self->{ranges} };
+    undef $self->{position};
+  } else {
+    $self->{position}++;
+  }
+  return wantarray ? (@$self{qw(book chapter)}, $position) : $position;
 }
 
 =head1 AUTHOR
@@ -209,7 +295,7 @@ notified of progress on your bug as I make changes.
 
 =head1 COPYRIGHT
 
-Copyright 2005 Ricardo Signes, All Rights Reserved.
+Copyright 2005-2006 Ricardo Signes, All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
