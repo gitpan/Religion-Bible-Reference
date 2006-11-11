@@ -20,13 +20,13 @@ Religion::Bible::Reference - canonicalize shorthand bible references
 
 =head1 VERSION
 
-version 0.01
+version 0.011
 
- $Id: /my/cs/projects/bibleref/trunk/lib/Religion/Bible/Reference.pm 20003 2006-03-17T02:03:08.001164Z rjbs  $
+ $Id: /my/cs/projects/bibleref/trunk/lib/Religion/Bible/Reference.pm 27795 2006-11-11T02:06:40.791057Z rjbs  $
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.011';
 
 =head1 SYNOPSIS
 
@@ -86,6 +86,7 @@ sub _parse_ref {
 
   (my $book  = $ref_string) =~ s/\s*($range_regex)\z//;
   my $ranges = $1;
+
   return (book => $book, ranges => $ranges);
 }
 
@@ -153,7 +154,7 @@ book name.
 sub stringify {
   my ($self) = @_;
   my $string = $self->{book}
-             . ' '
+             . q{ }
              . $self->{chapter};
 
   return unless @{ $self->{ranges} };
@@ -252,7 +253,7 @@ sub iterator {
 
 package Religion::Bible::Reference::Iterator;
 
-sub next {
+sub next { ## no critic # honestly, next is a great method for an iterator
   my ($self) = @_;
   return unless @{ $self->{ranges} };
 
