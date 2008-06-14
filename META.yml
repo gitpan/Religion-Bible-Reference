@@ -1,16 +1,16 @@
 --- #YAML:1.0
 name:                Religion-Bible-Reference
-version:             0.011
+version:             0.012
 abstract:            canonicalize shorthand bible references
 license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.31
+author:              
+    - Ricardo Signes <rjbs@cpan.org>
+generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
     Class::Accessor:               0
     Sub::Exporter:                 0.9
     Test::More:                    0
 meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
-author:
-    - Ricardo Signes <rjbs@cpan.org>
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
