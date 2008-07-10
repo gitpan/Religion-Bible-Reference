@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Religion-Bible-Reference
-version:             0.012
+version:             0.013
 abstract:            canonicalize shorthand bible references
 license:             perl
 author:              
