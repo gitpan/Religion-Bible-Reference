@@ -7,9 +7,19 @@ use Sub::Exporter -setup => {
   groups  => { default => [ qw(bibref) ] },
 };
 
-use base qw(Class::Accessor);
+my %book_chapters;
+my %book_abbrev;
+my %book_short;
 
-__PACKAGE__->mk_accessors(qw(book chapter ranges));
+BEGIN {
+  for my $attr (qw(book chapter ranges)) {
+    no strict 'refs';
+    *$attr = sub {
+      return $_[0]->{$attr} if @_ == 1;
+      return $_[0]->{$attr} = $_[1];
+    };
+  }
+}
 
 use Religion::Bible::Reference::Standard;
 
@@ -19,11 +29,11 @@ Religion::Bible::Reference - canonicalize shorthand bible references
 
 =head1 VERSION
 
-version 0.013
+version 0.014
 
 =cut
 
-our $VERSION = '0.013';
+our $VERSION = '0.014';
 
 =head1 SYNOPSIS
 
@@ -96,7 +106,9 @@ sub new {
 
   return unless $self->{book}  = $class->canonicalize_book($bibref{book});
 
-  return unless my $range = $class->_parse_ranges($bibref{ranges});
+  bless $self => $class;
+
+  return unless my $range = $self->_parse_ranges($bibref{ranges});
 
   $self->{chapter} = $range->{chapter};
   $self->{ranges}  = $range->{ranges};
@@ -107,7 +119,7 @@ sub new {
     $self->{ranges},
   );
 
-  bless $self => $class;
+  return $self;
 }
 
 sub _validate_ranges {
@@ -126,7 +138,9 @@ sub _parse_ranges {
   my ($chapter, $rest) = $string =~ /\A(\d+)(?::(.+))?\z/;
 
   return unless $chapter;
-  return { chapter => $string } unless $rest;
+  return { chapter => $string,
+           ranges => [[ 1, $book_chapters{$self->{book}}[$chapter - 1] ]] } 
+           unless $rest;
 
   my @range_strings = split /,\s?/, $rest;
 
@@ -167,16 +181,16 @@ sub _stringify_range {
   map { $_->[0] == $_->[1] ? $_->[0] : "$_->[0]-$_->[1]" } $range
 }
 
-my %book_chapters;
-my %book_abbrev;
-my %book_short;
-
 sub _register_book_set {
   my ($class, $package) = @_;
-  my $standard = $package->_books;
-  %book_chapters = (%book_chapters, %{$standard->{chapters}});
-  %book_abbrev   = (%book_abbrev,   %{$standard->{abbrev}});
-  %book_short    = (%book_short,    %{$standard->{short_form}});
+
+  my @books = $package->_books;
+  for my $book (@books) {
+    my $full = $book->{full};
+    $book_chapters{ $full } = $book->{verses};
+    $book_abbrev  { $full } = $book->{abbreviations};
+    $book_short   { $full } = $book->{short};
+  }
 }
 
 =head2 $self->stringify_short
