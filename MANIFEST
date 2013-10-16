@@ -1,15 +1,16 @@
 Changes
+LICENSE
 MANIFEST
+META.json
+META.yml
 Makefile.PL
 README
+dist.ini
 lib/Religion/Bible/Reference.pm
 lib/Religion/Bible/Reference/Standard.pm
-t/00-load.t
+t/00-compile.t
+t/000-report-versions-tiny.t
 t/basic.t
 t/iterator.t
-xt/release/pod-coverage.t
-xt/release/pod.t
-xt/release/perl-critic.t
-LICENSE
-META.yml                                 Module YAML meta-data (added by MakeMaker)
-META.json                                Module JSON meta-data (added by MakeMaker)
+xt/release/changes_has_content.t
+xt/release/pod-syntax.t

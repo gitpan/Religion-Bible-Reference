@@ -1,6 +1,10 @@
 use warnings;
 use strict;
 package Religion::Bible::Reference;
+{
+  $Religion::Bible::Reference::VERSION = '0.015';
+}
+# ABSTRACT: canonicalize shorthand bible references
 
 use Sub::Exporter -setup => {
   exports => [ qw(bibref) ],
@@ -23,62 +27,9 @@ BEGIN {
 
 use Religion::Bible::Reference::Standard;
 
-=head1 NAME
-
-Religion::Bible::Reference - canonicalize shorthand bible references
-
-=head1 VERSION
-
-version 0.014
-
-=cut
-
-our $VERSION = '0.014';
-
-=head1 SYNOPSIS
-
- use Religion::Bible::Reference;
-
- my $quote = bibref("jn8:32");
-
- print "($quote)";   # (John 8:32)
- print $quote->book; # John
-
-=head1 DESCRIPTION
-
-This module converts simple text descriptions of bible references and ranges
-into objects that stringify into a canonical form.
-
-B<WARNING!>  This module is mostly an idea and not so much a guaranteed
-interface or well-tested implementation.  If you're interested in either of
-those existing, you should let me know.
-
-=head1 FUNCTIONS
-
-=head2 bibref($ref_string)
-
-This function is exported by default, and constructs a new
-Religion::Bible::Reference
-
-Reference strings must be a book followed by a list of chapters, verses, or
-ranges.  The following are all valid ranges:
-
-  Pro 23:12, 23:15-17
-  st.jn8:32
-  Song of Solomon 8:7-8
-  2 John 1
-
-=cut
 
 sub bibref { __PACKAGE__->new(@_); }
 
-=head1 METHODS
-
-=head2 Religion::Bible::Reference->new($ref_string)
-
-This method acts just like the exported C<bibref> function.
-
-=cut
 
 # ok:
 # jn8
@@ -139,13 +90,13 @@ sub _parse_ranges {
 
   return unless $chapter;
   return { chapter => $string,
-           ranges => [[ 1, $book_chapters{$self->{book}}[$chapter - 1] ]] } 
+           ranges => [[ 1, $book_chapters{$self->{book}}[$chapter - 1] ]] }
            unless $rest;
 
   my @range_strings = split /,\s?/, $rest;
 
   my @range;
-  
+
   for my $rs (@range_strings) {
     my ($start, $end) = $rs =~ /\A(\d+)(?:-(\d+))?\z/;
     return unless $start;
@@ -155,12 +106,6 @@ sub _parse_ranges {
   return { chapter => $chapter, ranges => \@range };
 }
 
-=head2 $self->stringify
-
-This method returns a string representing the reference, using the canonical
-book name.
-
-=cut
 
 sub stringify {
   my ($self) = @_;
@@ -170,7 +115,7 @@ sub stringify {
 
   return unless @{ $self->{ranges} };
 
-  $string .= 
+  $string .=
     ':' . join(', ', map { $self->_stringify_range($_) } @{ $self->{ranges} })
   ;
 }
@@ -193,15 +138,6 @@ sub _register_book_set {
   }
 }
 
-=head2 $self->stringify_short
-
-This method returns a string representing the reference, using the short book
-name.
-
-In other words, John 8:32 would be Jn 8:32.  All short forms should safely
-round-trip back via parsing.
-
-=cut
 
 sub stringify_short {
   my ($self) = @_;
@@ -212,19 +148,13 @@ sub stringify_short {
 
   return unless @{ $self->{ranges} };
 
-  $string .= 
+  $string .=
     ':' . join(', ', map { $self->_stringify_range($_) } @{ $self->{ranges} })
   ;
 }
 
 __PACKAGE__->_register_book_set("Religion::Bible::Reference::Standard");
 
-=head2 $class->canonicalize_book($book_abbrev)
-
-If possible, this method returns the canonical name of the book whose
-abbreviation was passed.
-
-=cut
 
 # mdxi suggests that I could have a list of pre-limiting regex, something like
 # this:
@@ -246,14 +176,6 @@ sub canonicalize_book {
   return;
 }
 
-=head2 C< validate_verse >
-
-  $class->validate_verse($book, $chapter, $verse)
-
-This method returns true if the given book, chapter, and verse exists;
-otherwise it returns false.
-
-=cut
 
 sub validate_verse {
   my ($self, $book, $chapter, $verse) = @_;
@@ -263,16 +185,6 @@ sub validate_verse {
   return 1
 }
 
-=head2 C< iterator >
-
-  my $iterator = $bibref->iterator;
-
-  while (my $verse = $iterator->next) {
-    my $text = retrieve($verse);
-    print "$text\n";
-  }
-
-=cut
 
 sub iterator {
   my ($self) = @_;
@@ -287,6 +199,9 @@ sub iterator {
 }
 
 package Religion::Bible::Reference::Iterator;
+{
+  $Religion::Bible::Reference::Iterator::VERSION = '0.015';
+}
 
 sub next { ## no critic # honestly, next is a great method for an iterator
   my ($self) = @_;
@@ -304,37 +219,135 @@ sub next { ## no critic # honestly, next is a great method for an iterator
   return wantarray ? (@$self{qw(book chapter)}, $position) : $position;
 }
 
-=head1 AUTHOR
 
-Ricardo Signes, C<< <rjbs@cpan.org> >>
+1;
+
+__END__
+
+=pod
+
+=head1 NAME
+
+Religion::Bible::Reference - canonicalize shorthand bible references
+
+=head1 VERSION
+
+version 0.015
+
+=head1 SYNOPSIS
+
+ use Religion::Bible::Reference;
+
+ my $quote = bibref("jn8:32");
+
+ print "($quote)";   # (John 8:32)
+ print $quote->book; # John
+
+=head1 DESCRIPTION
+
+This module converts simple text descriptions of bible references and ranges
+into objects that stringify into a canonical form.
+
+B<WARNING!>  This module is mostly an idea and not so much a guaranteed
+interface or well-tested implementation.  If you're interested in either of
+those existing, you should let me know.
+
+=head1 METHODS
+
+=head2 new
+
+  my $ref = Religion::Bible::Reference->new($ref_string)
+
+This method acts just like the exported C<bibref> function.
+
+=head2 stringify
+
+  $self->stringify
+
+This method returns a string representing the reference, using the canonical
+book name.
+
+=head2 stringify_short
+
+  my $str = $self->stringify_short
+
+This method returns a string representing the reference, using the short book
+name.
+
+In other words, John 8:32 would be Jn 8:32.  All short forms should safely
+round-trip back via parsing.
+
+=head2 canonicalize_book
+
+  my $book = $class->canonicalize_book($book_abbrev)
+
+If possible, this method returns the canonical name of the book whose
+abbreviation was passed.
+
+=head2 validate_verse
+
+  $class->validate_verse($book, $chapter, $verse)
+
+This method returns true if the given book, chapter, and verse exists;
+otherwise it returns false.
+
+=head2 iterator
+
+  my $iterator = $bibref->iterator;
+
+  while (my $verse = $iterator->next) {
+    my $text = retrieve($verse);
+    print "$text\n";
+  }
+
+=head1 FUNCTIONS
+
+=head2 bibref
+
+  my $ref = bibref($ref_string)
+
+This function is exported by default, and constructs a new
+Religion::Bible::Reference
+
+Reference strings must be a book followed by a list of chapters, verses, or
+ranges.  The following are all valid ranges:
+
+  Pro 23:12, 23:15-17
+  st.jn8:32
+  Song of Solomon 8:7-8
+  2 John 1
 
 =head1 TODO
 
 =over 4
 
-=item * allow Text::Abbrev instead of registered abbrevs
+=item *
 
-=item * clean up regex/lists
+allow L<Text::Abbrev> instead of registered abbrevs
 
-=item * make public the interface to load modules of books and abbreviations
+=item *
 
-=item * make an interface to unload modules
+clean up regex/lists
+
+=item *
+
+make public the interface to load modules of books and abbreviations
+
+=item *
+
+make an interface to unload modules
 
 =back
 
-=head1 BUGS
+=head1 AUTHOR
 
-Please report any bugs or feature requests through the web interface at
-L<http://rt.cpan.org>.  I will be notified, and then you'll automatically be
-notified of progress on your bug as I make changes.
+Ricardo SIGNES <rjbs@cpan.org>
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-Copyright 2005-2006 Ricardo Signes, All Rights Reserved.
+This software is copyright (c) 2005 by Ricardo SIGNES.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
-
-1;
