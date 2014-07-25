@@ -1,11 +1,14 @@
 use strict;
 use warnings;
 package Religion::Bible::Reference::Standard;
-{
-  $Religion::Bible::Reference::Standard::VERSION = '0.015';
-}
 # ABSTRACT: standard bible books and abbreviations
-
+$Religion::Bible::Reference::Standard::VERSION = '0.016';
+#pod =head1 DESCRIPTION
+#pod
+#pod This module is a package of book descriptions and abbreviations for use with
+#pod Religion::Bible::Reference.  It is loaded by that module by default.
+#pod
+#pod =cut
 
 my @books = (
   'Genesis' => {
@@ -372,7 +375,7 @@ my @books = (
   'James' => {
     short => 'Jas',
     abbreviations => [ 'jas' ],
-    verses  => [ qw(27 26 18 17 30) ],
+    verses  => [ qw(27 26 18 17 20) ],
   },
   '1 Peter' => {
     short => '1 Pe',
@@ -431,13 +434,15 @@ __END__
 
 =pod
 
+=encoding UTF-8
+
 =head1 NAME
 
 Religion::Bible::Reference::Standard - standard bible books and abbreviations
 
 =head1 VERSION
 
-version 0.015
+version 0.016
 
 =head1 DESCRIPTION
 

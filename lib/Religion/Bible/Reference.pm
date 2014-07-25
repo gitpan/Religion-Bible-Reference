@@ -1,11 +1,8 @@
 use warnings;
 use strict;
 package Religion::Bible::Reference;
-{
-  $Religion::Bible::Reference::VERSION = '0.015';
-}
 # ABSTRACT: canonicalize shorthand bible references
-
+$Religion::Bible::Reference::VERSION = '0.016';
 use Sub::Exporter -setup => {
   exports => [ qw(bibref) ],
   groups  => { default => [ qw(bibref) ] },
@@ -27,9 +24,50 @@ BEGIN {
 
 use Religion::Bible::Reference::Standard;
 
+#pod =head1 SYNOPSIS
+#pod
+#pod  use Religion::Bible::Reference;
+#pod
+#pod  my $quote = bibref("jn8:32");
+#pod
+#pod  print "($quote)";   # (John 8:32)
+#pod  print $quote->book; # John
+#pod
+#pod =head1 DESCRIPTION
+#pod
+#pod This module converts simple text descriptions of bible references and ranges
+#pod into objects that stringify into a canonical form.
+#pod
+#pod B<WARNING!>  This module is mostly an idea and not so much a guaranteed
+#pod interface or well-tested implementation.  If you're interested in either of
+#pod those existing, you should let me know.
+#pod
+#pod =func bibref
+#pod
+#pod   my $ref = bibref($ref_string)
+#pod
+#pod This function is exported by default, and constructs a new
+#pod Religion::Bible::Reference
+#pod
+#pod Reference strings must be a book followed by a list of chapters, verses, or
+#pod ranges.  The following are all valid ranges:
+#pod
+#pod   Pro 23:12, 23:15-17
+#pod   st.jn8:32
+#pod   Song of Solomon 8:7-8
+#pod   2 John 1
+#pod
+#pod =cut
 
 sub bibref { __PACKAGE__->new(@_); }
 
+#pod =method new
+#pod
+#pod   my $ref = Religion::Bible::Reference->new($ref_string)
+#pod
+#pod This method acts just like the exported C<bibref> function.
+#pod
+#pod =cut
 
 # ok:
 # jn8
@@ -106,6 +144,14 @@ sub _parse_ranges {
   return { chapter => $chapter, ranges => \@range };
 }
 
+#pod =method stringify
+#pod
+#pod   $self->stringify
+#pod
+#pod This method returns a string representing the reference, using the canonical
+#pod book name.
+#pod
+#pod =cut
 
 sub stringify {
   my ($self) = @_;
@@ -138,6 +184,17 @@ sub _register_book_set {
   }
 }
 
+#pod =method stringify_short
+#pod
+#pod   my $str = $self->stringify_short
+#pod
+#pod This method returns a string representing the reference, using the short book
+#pod name.
+#pod
+#pod In other words, John 8:32 would be Jn 8:32.  All short forms should safely
+#pod round-trip back via parsing.
+#pod
+#pod =cut
 
 sub stringify_short {
   my ($self) = @_;
@@ -155,6 +212,14 @@ sub stringify_short {
 
 __PACKAGE__->_register_book_set("Religion::Bible::Reference::Standard");
 
+#pod =method canonicalize_book
+#pod
+#pod   my $book = $class->canonicalize_book($book_abbrev)
+#pod
+#pod If possible, this method returns the canonical name of the book whose
+#pod abbreviation was passed.
+#pod
+#pod =cut
 
 # mdxi suggests that I could have a list of pre-limiting regex, something like
 # this:
@@ -176,6 +241,14 @@ sub canonicalize_book {
   return;
 }
 
+#pod =method validate_verse
+#pod
+#pod   $class->validate_verse($book, $chapter, $verse)
+#pod
+#pod This method returns true if the given book, chapter, and verse exists;
+#pod otherwise it returns false.
+#pod
+#pod =cut
 
 sub validate_verse {
   my ($self, $book, $chapter, $verse) = @_;
@@ -185,6 +258,16 @@ sub validate_verse {
   return 1
 }
 
+#pod =method iterator
+#pod
+#pod   my $iterator = $bibref->iterator;
+#pod
+#pod   while (my $verse = $iterator->next) {
+#pod     my $text = retrieve($verse);
+#pod     print "$text\n";
+#pod   }
+#pod
+#pod =cut
 
 sub iterator {
   my ($self) = @_;
@@ -199,10 +282,7 @@ sub iterator {
 }
 
 package Religion::Bible::Reference::Iterator;
-{
-  $Religion::Bible::Reference::Iterator::VERSION = '0.015';
-}
-
+$Religion::Bible::Reference::Iterator::VERSION = '0.016';
 sub next { ## no critic # honestly, next is a great method for an iterator
   my ($self) = @_;
   return unless @{ $self->{ranges} };
@@ -219,6 +299,15 @@ sub next { ## no critic # honestly, next is a great method for an iterator
   return wantarray ? (@$self{qw(book chapter)}, $position) : $position;
 }
 
+#pod =head1 TODO
+#pod
+#pod =for :list
+#pod * allow L<Text::Abbrev> instead of registered abbrevs
+#pod * clean up regex/lists
+#pod * make public the interface to load modules of books and abbreviations
+#pod * make an interface to unload modules
+#pod
+#pod =cut
 
 1;
 
@@ -226,13 +315,15 @@ __END__
 
 =pod
 
+=encoding UTF-8
+
 =head1 NAME
 
 Religion::Bible::Reference - canonicalize shorthand bible references
 
 =head1 VERSION
 
-version 0.015
+version 0.016
 
 =head1 SYNOPSIS
 
